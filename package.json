@@ -1,0 +1,22 @@
+{
+  "name": "cyber-defence-himalayan-data-vault",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cyber Defence: Himalayan Data Vault - a browser-based first-person 360 degree cyber security awareness game for warehouse and logistics staff.",
+  "author": "Assignment Executive",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "start": "vite",
+    "prebuild": "node scripts/vendor-aframe.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "node serve.mjs",
+    "test": "node tests/logic.test.mjs",
+    "test:e2e": "node tests/e2e.test.mjs"
+  },
+  "devDependencies": {
+    "vite": "^5.4.10"
+  }
+}

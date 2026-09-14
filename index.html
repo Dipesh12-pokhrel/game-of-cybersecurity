@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="description" content="Cyber Defence: Himalayan Data Vault - a fictional first-person cyber security awareness training game for warehouse and logistics staff." />
+  <meta name="theme-color" content="#060b16" />
+  <title>Cyber Defence: Himalayan Data Vault</title>
+
+  <!--
+    A-Frame is loaded here as a plain script so that the <a-scene> below is
+    upgraded as soon as the page parses.
+
+    The launcher (START-GAME.bat / start-game.sh) saves a copy of A-Frame in
+    public/vendor/, so if the CDN is blocked - offline, or behind a company
+    firewall - the second tag below loads that local copy instead. Nothing
+    needs to be changed by hand.
+  -->
+  <script src="https://aframe.io/releases/1.7.0/aframe.min.js"></script>
+  <script>
+    if (!window.AFRAME) {
+      document.write('<scr' + 'ipt src="./vendor/aframe.min.js"><\/scr' + 'ipt>');
+    }
+  </script>
+
+  <link rel="stylesheet" href="./src/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <script type="module" src="./src/main.js"></script>
+</head>
+
+<body>
+  <!-- ==================================================================
+       3D / 360 WORLD
+       The whole environment is generated procedurally by src/game/world.js,
+       so this markup only contains the scene, the player rig and the
+       raycasting cursor.
+       ================================================================== -->
+  <a-scene
+    id="scene"
+    background="color: #05080f"
+    renderer="antialias: true; colorManagement: true; highRefreshRate: true; maxCanvasWidth: 1920; maxCanvasHeight: 1920"
+    shadow="type: pcfsoft; autoUpdate: true"
+    fog="type: exponential; color: #070d1a; density: 0.022"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: true"
+    loading-screen="enabled: false">
+
+    <!-- Procedural texture canvases are injected into <a-assets> at runtime -->
+    <a-assets id="assets" timeout="8000"></a-assets>
+
+    <!-- Procedural sky: a mountain dusk gradient dome (see world.js) -->
+    <a-sky id="sky" radius="400" color="#0a1424"></a-sky>
+
+    <!-- All four areas are built into this container -->
+    <a-entity id="world"></a-entity>
+
+    <!-- Player -------------------------------------------------------- -->
+    <a-entity id="rig" position="0 0 3" player-bounds>
+      <a-entity
+        id="camera"
+        camera="fov: 72; near: 0.05; far: 500"
+        position="0 1.65 0"
+        look-controls="pointerLockEnabled: true; magicWindowTrackingEnabled: true; touchEnabled: true; reverseMouseDrag: false"
+        wasd-controls="acceleration: 42; fly: false"
+        player-head>
+        <!-- Invisible ray cursor: the visible crosshair is the DOM one in the HUD -->
+        <a-entity
+          id="cursor"
+          cursor="rayOrigin: entity; fuse: false"
+          raycaster="objects: .clickable; far: 14; interval: 60"
+          position="0 0 -1"
+          geometry="primitive: ring; radiusInner: 0.0001; radiusOuter: 0.0002"
+          material="color: #7ef7ff; shader: flat; opacity: 0"></a-entity>
+      </a-entity>
+    </a-entity>
+  </a-scene>
+
+  <!-- ==================================================================
+       HEADS-UP DISPLAY (DOM overlay)
+       ================================================================== -->
+  <div id="hud" class="hud" aria-live="off">
+
+    <!-- Top bar: score / attack meter / timer ----------------------- -->
+    <header class="hud-top" role="region" aria-label="Mission status">
+      <div class="hud-brand">
+        <span class="hud-shield" aria-hidden="true">&#128737;</span>
+        <div>
+          <p class="hud-brand-title">HIMALAYAN DATA VAULT</p>
+          <p class="hud-brand-sub">Cyber Defence Command</p>
+        </div>
+      </div>
+
+      <div class="hud-stats">
+        <div class="stat stat-points">
+          <span class="stat-label">Defence Points</span>
+          <span class="stat-value" id="statPoints" aria-live="polite">0</span>
+        </div>
+        <div class="stat stat-threats">
+          <span class="stat-label">Threats Stopped</span>
+          <span class="stat-value" id="statThreats" aria-live="polite">0 / 8</span>
+        </div>
+        <div class="stat stat-timer">
+          <span class="stat-label">Time Remaining</span>
+          <span class="stat-value" id="statTimer" aria-live="off">10:00</span>
+        </div>
+      </div>
+
+      <div class="hud-meter" role="group" aria-label="Cyber attack meter">
+        <div class="meter-head">
+          <span class="stat-label">Cyber Attack Meter</span>
+          <span class="meter-value" id="meterValue" aria-live="polite">0%</span>
+        </div>
+        <div class="meter-track"
+             role="progressbar"
+             aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+             aria-labelledby="meterValue"
+             id="meterTrack">
+          <div class="meter-fill" id="meterFill"></div>
+          <div class="meter-ticks" aria-hidden="true"></div>
+        </div>
+      </div>
+
+      <div class="hud-controls">
+        <button type="button" class="icon-btn" id="btnPause" title="Pause (P)" aria-label="Pause game">
+          <span aria-hidden="true">&#10074;&#10074;</span>
+        </button>
+        <button type="button" class="icon-btn" id="btnAudio" title="Toggle audio (M)" aria-label="Mute audio" aria-pressed="false">
+          <span aria-hidden="true" id="audioGlyph">&#128266;</span>
+        </button>
+        <button type="button" class="icon-btn" id="btnHelp" title="Controls &amp; settings (H)" aria-label="Controls and settings">
+          <span aria-hidden="true">?</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Mission panel (left) ---------------------------------------- -->
+    <section class="mission-panel" id="missionPanel" aria-label="Current mission">
+      <div class="mission-panel-head">
+        <span class="mission-chip" id="missionChip">MISSION 1</span>
+        <button type="button" class="mission-collapse" id="btnCollapse" aria-label="Collapse mission panel" aria-expanded="true">&#9662;</button>
+      </div>
+      <h2 class="mission-title" id="missionTitle">RED ALERT EMAIL</h2>
+      <p class="mission-objective" id="missionObjective">Report to the Warehouse Office.</p>
+      <p class="mission-location" id="missionLocation"><span aria-hidden="true">&#128205;</span> Warehouse Office</p>
+      <ol class="mission-progress" id="missionProgress"></ol>
+    </section>
+
+    <!-- Area navigation (right) ------------------------------------- -->
+    <nav class="area-nav" id="areaNav" aria-label="Move to area">
+      <p class="area-nav-title">Areas</p>
+      <div class="area-nav-list" id="areaNavList"></div>
+    </nav>
+
+    <!-- Crosshair ---------------------------------------------------- -->
+    <div class="crosshair" id="crosshair" aria-hidden="true">
+      <span class="crosshair-dot"></span>
+      <span class="crosshair-ring"></span>
+      <span class="crosshair-label" id="crosshairLabel"></span>
+    </div>
+
+    <!-- Toast / feedback stack --------------------------------------- -->
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+    <!-- Subtitles for all audio -------------------------------------- -->
+    <div class="subtitles" id="subtitles" aria-live="polite"></div>
+
+    <!-- Mobile touch controls ---------------------------------------- -->
+    <div class="touch-controls" id="touchControls" aria-hidden="true">
+      <div class="touch-stick" id="touchStick">
+        <div class="touch-knob" id="touchKnob"></div>
+      </div>
+      <button type="button" class="touch-action" id="touchAction">SELECT</button>
+    </div>
+  </div>
+
+  <!-- ==================================================================
+       OVERLAYS: briefing / mission modal / pause / end screens
+       ================================================================== -->
+  <div class="overlay" id="overlay" hidden>
+    <div class="overlay-scrim"></div>
+    <div class="overlay-body" id="overlayBody" role="dialog" aria-modal="true" aria-labelledby="overlayTitle" tabindex="-1"></div>
+  </div>
+
+  <!-- Small boot notice shown while A-Frame warms up -->
+  <div class="boot" id="boot">
+    <div class="boot-inner">
+      <div class="boot-ring" aria-hidden="true"></div>
+      <p class="boot-title">INITIALISING DEFENCE GRID</p>
+      <p class="boot-sub" id="bootSub">Loading Himalayan Data Vault&hellip;</p>
+    </div>
+  </div>
+
+  <noscript>
+    <p style="color:#e8f1ff;background:#060b16;padding:2rem;font-family:sans-serif">
+      This training simulation needs JavaScript enabled.
+    </p>
+  </noscript>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Nothing here is needed to build or serve the game.
+tests
+serve.mjs
+START-GAME.bat
+RUN-WITHOUT-INSTALL.bat
+start-game.sh
+run-without-install.sh
+README.md
