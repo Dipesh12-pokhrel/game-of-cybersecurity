@@ -170,8 +170,19 @@ function renderArea(areaId) {
 /* Toasts and score pops                                              */
 /* ------------------------------------------------------------------ */
 
+/** Maximum toasts on screen at once - more than this buries the HUD. */
+const MAX_TOASTS = 3;
+
 export function toast(message, kind = 'info', ms = 4200) {
   if (!els.toasts) return;
+
+  // Retire the oldest toasts so the stack can never grow over the mission panel.
+  const live = els.toasts.querySelectorAll('.toast:not(.is-out)');
+  for (let i = 0; i <= live.length - MAX_TOASTS; i++) {
+    live[i].classList.add('is-out');
+    setTimeout(() => live[i].remove(), 400);
+  }
+
   const el = document.createElement('div');
   el.className = `toast ${kind}`;
   el.textContent = message;

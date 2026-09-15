@@ -23,14 +23,40 @@ function isRendered(el) {
   return true;
 }
 
-/** Runs `cb` once the entity actually has a three.js mesh. */
+/**
+ * Runs `cb` once the entity has a three.js mesh AND all of its components have
+ * initialised.
+ *
+ * Waiting for `loaded` rather than `object3dset` matters: the geometry
+ * component creates the mesh before the material component has run, so a map
+ * applied on `object3dset` is thrown away when `material` replaces the
+ * placeholder material a moment later. `loaded` fires after both.
+ */
 function whenMesh(el, cb) {
-  const mesh = el.getObject3D('mesh');
-  if (mesh) { cb(mesh); return; }
-  const onSet = (evt) => {
-    if (evt.detail.type === 'mesh') { el.removeEventListener('object3dset', onSet); cb(el.getObject3D('mesh')); }
+  const run = () => {
+    const mesh = el.getObject3D('mesh');
+    if (!mesh) return false;
+    cb(mesh);
+    return true;
   };
-  el.addEventListener('object3dset', onSet);
+
+  if (el.hasLoaded && run()) return;
+
+  const afterLoad = () => {
+    if (run()) return;
+    // Geometry attached later than the rest of the entity: wait for it, then
+    // defer a tick so any material update lands first.
+    const onSet = (evt) => {
+      // `object3dset` bubbles, so ignore events from child entities.
+      if (evt.target !== el || evt.detail.type !== 'mesh') return;
+      el.removeEventListener('object3dset', onSet);
+      setTimeout(run, 0);
+    };
+    el.addEventListener('object3dset', onSet);
+  };
+
+  if (el.hasLoaded) afterLoad();
+  else el.addEventListener('loaded', afterLoad, { once: true });
 }
 
 /* =========================================================================

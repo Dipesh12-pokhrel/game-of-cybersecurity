@@ -78,11 +78,21 @@ function buildShell(parent, opts) {
   mk('a-plane', { position: `${-w / 2} ${h / 2} 0`, rotation: '0 90 0', width: d, height: h, material: wallMat, tex: `kind: ${wallKind}; repeat: ${Math.round(d / 3)} 1`, shadow: 'receive: true' }, parent);
   mk('a-plane', { position: `${w / 2} ${h / 2} 0`, rotation: '0 -90 0', width: d, height: h, material: wallMat, tex: `kind: ${wallKind}; repeat: ${Math.round(d / 3)} 1`, shadow: 'receive: true' }, parent);
 
-  // Skirting accent strip - gives the rooms their "command centre" glow line
-  [[0, -d / 2 + 0.02, w, 0], [0, d / 2 - 0.02, w, 180], [-w / 2 + 0.02, 0, d, 90], [w / 2 - 0.02, 0, d, -90]].forEach(([x, z, len, ry]) => {
+  // Painted lower wall band with a hi-vis line on top of it, the way real
+  // warehouses mark the bottom metre of every wall, plus the zone accent line.
+  const walls = [[0, -d / 2 + 0.03, w, 0], [0, d / 2 - 0.03, w, 180], [-w / 2 + 0.03, 0, d, 90], [w / 2 - 0.03, 0, d, -90]];
+  walls.forEach(([x, z, len, ry]) => {
+    mk('a-plane', {
+      position: `${x} 0.6 ${z}`, rotation: `0 ${ry} 0`, width: len, height: 1.2,
+      material: `color: ${opts.band || '#22303f'}; roughness: 0.92; side: double`
+    }, parent);
+    mk('a-plane', {
+      position: `${x} 1.24 ${z}`, rotation: `0 ${ry} 0`, width: len, height: 0.08,
+      material: 'color: #f5c518; shader: flat; opacity: 0.9; transparent: true; side: double'
+    }, parent);
     mk('a-plane', {
       position: `${x} 0.09 ${z}`, rotation: `0 ${ry} 0`, width: len, height: 0.06,
-      material: `color: ${accent}; shader: flat; opacity: 0.75; transparent: true`
+      material: `color: ${accent}; shader: flat; opacity: 0.8; transparent: true; side: double`
     }, parent);
   });
 
@@ -90,7 +100,7 @@ function buildShell(parent, opts) {
   for (let i = -1; i <= 1; i++) {
     mk('a-box', {
       position: `${i * (w / 3.2)} ${h - 0.08} 0`, width: 0.42, height: 0.08, depth: d - 2.4,
-      material: 'color: #eaf4ff; emissive: #cfe6ff; emissiveIntensity: 1.4'
+      material: 'color: #cfe0f2; emissive: #b7d2ee; emissiveIntensity: 0.85'
     }, parent);
     mk('a-entity', {
       position: `${i * (w / 3.2)} ${h - 0.35} 0`,
@@ -242,14 +252,162 @@ function serverRack(parent, x, z, ry, seed) {
   return g;
 }
 
+
+/* =========================================================================
+   Warehouse fittings - the props that make a room read as a real warehouse
+   ========================================================================= */
+
+/** A painted marking on the floor. Everything is axis-aligned inside `ry`. */
+function floorPaint(parent, x, z, w, d, colour, ry = 0, opacity = 0.85) {
+  const g = mk('a-entity', { position: `${x} 0.015 ${z}`, rotation: `0 ${ry} 0` }, parent);
+  mk('a-plane', {
+    rotation: '-90 0 0', width: w, height: d,
+    material: `color: ${colour}; shader: flat; opacity: ${opacity}; transparent: true; side: double`
+  }, g);
+  return g;
+}
+
+/** A green pedestrian walkway with white edge lines. */
+function walkway(parent, x, z, w, d, ry = 0) {
+  const g = mk('a-entity', { position: `${x} 0 ${z}`, rotation: `0 ${ry} 0` }, parent);
+  floorPaint(g, 0, 0, w, d, '#1f7a4d', 0, 0.75);
+  floorPaint(g, -w / 2 + 0.06, 0, 0.12, d, '#eef4ff', 0, 0.9);
+  floorPaint(g, w / 2 - 0.06, 0, 0.12, d, '#eef4ff', 0, 0.9);
+  return g;
+}
+
+/** A yellow-and-black impact bollard. */
+function bollard(parent, x, z, height = 1.0) {
+  const g = mk('a-entity', { position: `${x} 0 ${z}` }, parent);
+  mk('a-cylinder', { position: '0 0.05 0', radius: 0.22, height: 0.1, material: 'color: #1b2029; roughness: 0.95' }, g);
+  mk('a-cylinder', {
+    position: `0 ${0.05 + height / 2} 0`, radius: 0.11, height,
+    material: 'color: #f5c518; roughness: 0.6; metalness: 0.1',
+    tex: 'kind: hazard; repeat: 2 3'
+  }, g);
+  mk('a-cylinder', { position: `0 ${0.07 + height} 0`, radius: 0.125, height: 0.05, material: 'color: #14161c' }, g);
+  return g;
+}
+
+/** Yellow safety guard rail: posts plus two horizontal bars. */
+function guardRail(parent, x, z, len, ry = 0) {
+  const g = mk('a-entity', { position: `${x} 0 ${z}`, rotation: `0 ${ry} 0` }, parent);
+  const posts = Math.max(2, Math.round(len / 1.6) + 1);
+  for (let i = 0; i < posts; i++) {
+    const px = -len / 2 + (len / (posts - 1)) * i;
+    mk('a-box', { position: `${px} 0.55 0`, width: 0.09, height: 1.1, depth: 0.09, material: 'color: #f0b81c; roughness: 0.6' }, g);
+  }
+  [0.45, 1.0].forEach((by) => {
+    mk('a-box', { position: `0 ${by} 0`, width: len, height: 0.08, depth: 0.07, material: 'color: #f0b81c; roughness: 0.6' }, g);
+  });
+  return g;
+}
+
+/** A coloured chemical drum - cheap, effective colour on a warehouse floor. */
+function drum(parent, x, z, colour) {
+  const g = mk('a-entity', { position: `${x} 0 ${z}` }, parent);
+  mk('a-cylinder', { position: '0 0.44 0', radius: 0.29, height: 0.88, material: `color: ${colour}; roughness: 0.45; metalness: 0.15`, shadow: 'cast: true' }, g);
+  [0.26, 0.62].forEach((ry2) => {
+    mk('a-cylinder', { position: `0 ${ry2} 0`, radius: 0.305, height: 0.06, material: 'color: rgba(0,0,0,0.5); roughness: 0.8' }, g);
+  });
+  mk('a-cylinder', { position: '0 0.89 0', radius: 0.3, height: 0.04, material: 'color: #d8dee8; metalness: 0.5' }, g);
+  return g;
+}
+
+/** A wall-mounted safety box (red extinguisher board, green first-aid box). */
+function wallBox(parent, x, y, z, ry, colour, label, labelColour) {
+  const g = mk('a-entity', { position: `${x} ${y} ${z}`, rotation: `0 ${ry} 0` }, parent);
+  mk('a-box', { position: '0 0 0', width: 0.5, height: 0.62, depth: 0.16, material: `color: ${colour}; roughness: 0.5; metalness: 0.1` }, g);
+  mk('a-plane', {
+    position: '0 0 0.085', width: 0.44, height: 0.3,
+    material: 'shader: standard; side: double; emissive: #ffffff; emissiveIntensity: 0.3',
+    sign: `text: ${label}; color: ${labelColour}; bg: #0c1118`
+  }, g);
+  mk('a-entity', { position: '0 0 0.5', light: `type: point; color: ${colour}; intensity: 0.35; distance: 2.4; decay: 2` }, g);
+  return g;
+}
+
+/** An overhead aisle sign hanging from the ceiling. */
+function hangingSign(parent, x, z, text, colour, h = 4) {
+  const g = mk('a-entity', { position: `${x} 0 ${z}` }, parent);
+  [-0.6, 0.6].forEach((dx) => {
+    mk('a-cylinder', { position: `${dx} ${h - 0.42} 0`, radius: 0.015, height: 0.84, material: 'color: #8592a5; metalness: 0.7' }, g);
+  });
+  mk('a-plane', {
+    position: `0 ${h - 1.0} 0`, width: 1.7, height: 0.56,
+    material: 'shader: standard; side: double; emissive: #ffffff; emissiveIntensity: 0.45',
+    sign: `text: ${text}; color: ${colour}; bg: #0b1220`
+  }, g);
+  return g;
+}
+
+/** A short roller conveyor run. */
+function conveyor(parent, x, z, len, ry = 0) {
+  const g = mk('a-entity', { position: `${x} 0 ${z}`, rotation: `0 ${ry} 0` }, parent);
+  [-0.42, 0.42].forEach((dz) => {
+    mk('a-box', { position: `0 0.62 ${dz}`, width: len, height: 0.12, depth: 0.08, material: 'color: #e0a52a; roughness: 0.55; metalness: 0.2' }, g);
+  });
+  const legs = Math.max(2, Math.round(len / 1.3));
+  for (let i = 0; i < legs; i++) {
+    const px = -len / 2 + 0.3 + (len - 0.6) / (legs - 1) * i;
+    [-0.42, 0.42].forEach((dz) => {
+      mk('a-box', { position: `${px} 0.28 ${dz}`, width: 0.07, height: 0.56, depth: 0.07, material: 'color: #48566b; metalness: 0.5' }, g);
+    });
+  }
+  const rollers = Math.floor(len / 0.19);
+  for (let i = 0; i < rollers; i++) {
+    const px = -len / 2 + 0.12 + i * 0.19;
+    mk('a-cylinder', {
+      position: `${px} 0.66 0`, rotation: '90 0 0', radius: 0.055, height: 0.82,
+      material: 'color: #9aa7b8; metalness: 0.75; roughness: 0.3'
+    }, g);
+  }
+  return g;
+}
+
+/** Coloured patch-cable bundles running along a cable tray. */
+function cableRun(parent, x, y, z, len, colours) {
+  const g = mk('a-entity', { position: `${x} ${y} ${z}` }, parent);
+  colours.forEach((c, i) => {
+    mk('a-cylinder', {
+      position: `${(i - (colours.length - 1) / 2) * 0.07} 0 0`, rotation: '90 0 0',
+      radius: 0.022, height: len,
+      material: `color: ${c}; roughness: 0.6`
+    }, g);
+  });
+  return g;
+}
+
+/** A stack of shrink-wrapped pallets - blue film reads instantly as stock. */
+function wrappedPallet(parent, x, z, ry = 0) {
+  const g = mk('a-entity', { position: `${x} 0 ${z}`, rotation: `0 ${ry} 0` }, parent);
+  mk('a-box', { position: '0 0.06 0', width: 1.15, height: 0.12, depth: 0.95, material: 'color: #7a5a34; roughness: 1' }, g);
+  mk('a-box', {
+    position: '0 0.62 0', width: 1.05, height: 1.0, depth: 0.86,
+    material: 'color: #3f8fd0; roughness: 0.32; metalness: 0.08; transparent: true; opacity: 0.93',
+    shadow: 'cast: true; receive: true'
+  }, g);
+  mk('a-box', { position: '0 1.13 0', width: 1.06, height: 0.03, depth: 0.87, material: 'color: #8fd0ff; emissive: #2b7cc4; emissiveIntensity: 0.3' }, g);
+  return g;
+}
+
 /* =========================================================================
    AREA 1 - WAREHOUSE OFFICE
    ========================================================================= */
 function buildOffice(root) {
   const o = CONFIG.areaOrigin.office;
   const a = mk('a-entity', { id: 'area-office', position: `${o.x} 0 ${o.z}` }, root);
-  buildShell(a, { wallKind: 'steel', accent: '#55e9ff', lightIntensity: 0.55 });
+  buildShell(a, { wallKind: 'steel', accent: '#55e9ff', band: '#233346', lightIntensity: 0.55 });
   buildDoors(a, 'office', 10, 4);
+
+  // Painted floor: a green walkway to the doors and a yellow aisle line
+  walkway(a, 0, 2.6, 2.2, 4.4);
+  floorPaint(a, 0, -0.4, 12.4, 0.12, '#f5c518');
+  floorPaint(a, -6.0, -2.4, 0.12, 4.6, '#f5c518');
+
+  // Safety kit - instant colour and a nudge about workplace basics
+  wallBox(a, -6.9, 1.5, 0.6, 90, '#c62b2b', 'FIRE', '#ffd7d7');
+  wallBox(a, 6.9, 1.5, -0.6, -90, '#1f8a4c', 'FIRST AID', '#d6ffe6');
 
   // --- Main desk with the phishing workstation (MISSION 1) ---
   desk(a, -2.6, -3.2, 3.4, 1.3, 0);
@@ -306,6 +464,19 @@ function buildOffice(root) {
     sign: 'text: CYBER RULES; sub: LOCK IT • CHECK IT • REPORT IT; color: #ffb020; bg: #101826'
   }, a);
 
+  // Potted plant and colour-coded ring binders - small, but they stop the
+  // office reading as an empty grey box.
+  mk('a-cylinder', { position: '5.9 0.22 2.4', radius: 0.26, height: 0.44, material: 'color: #b5643a; roughness: 0.9' }, a);
+  [[0, 0.75, 0], [0.18, 0.62, 0.1], [-0.16, 0.66, -0.08]].forEach(([dx, dy, dz]) => {
+    mk('a-sphere', { position: `${5.9 + dx} ${dy} ${2.4 + dz}`, radius: 0.24, material: 'color: #2f8f52; roughness: 0.85', scale: '1 0.8 1' }, a);
+  });
+  ['#d94f4f', '#3f8fd0', '#f0b81c', '#49ad6d'].forEach((c, i) => {
+    mk('a-box', {
+      position: `${-6.45 + i * 0.13} 1.42 -4.3`, width: 0.11, height: 0.34, depth: 0.55,
+      material: `color: ${c}; roughness: 0.75`
+    }, a);
+  });
+
   securityCam(a, 6.5, 3.5, -4.4, -135);
 
   // --- NPC: Anjali Rana, Office Supervisor (fictional character) ---
@@ -323,11 +494,28 @@ function buildOffice(root) {
 function buildBay(root) {
   const o = CONFIG.areaOrigin.bay;
   const a = mk('a-entity', { id: 'area-bay', position: `${o.x} 0 ${o.z}` }, root);
-  buildShell(a, { wallKind: 'steelDark', accent: '#ffb020', lightIntensity: 0.5 });
+  buildShell(a, { wallKind: 'steelDark', accent: '#ff7a18', band: '#2b3140', lightIntensity: 0.5 });
   buildDoors(a, 'bay', 10, 4);
 
   // Hazard stripe along the bay edge
   mk('a-plane', { position: '0 0.012 -3.2', rotation: '-90 0 0', width: 13, height: 0.5, material: 'color: #e0a52a; roughness: 1', tex: 'kind: hazard; repeat: 10 1' }, a);
+
+  // --- Painted floor: this is what makes a space read as a loading bay ---
+  // Yellow outline of the goods-inward bay
+  floorPaint(a, 0, -2.0, 6.2, 0.14, '#f5c518');
+  floorPaint(a, -3.03, -3.5, 0.14, 3.0, '#f5c518');
+  floorPaint(a, 3.03, -3.5, 0.14, 3.0, '#f5c518');
+  // Stencilled bay number on the floor
+  mk('a-plane', {
+    position: '0 0.016 -2.75', rotation: '-90 0 0', width: 2.6, height: 0.82,
+    material: 'shader: flat; side: double; transparent: true; opacity: 0.85',
+    sign: 'text: BAY 01; sub: GOODS INWARD; color: #f5c518; bg: #12161f'
+  }, a);
+  // Green pedestrian walkway down the right-hand side, with a guard rail
+  walkway(a, 2.6, 2.4, 1.9, 5.0);
+  guardRail(a, 1.6, 2.4, 5.0, 90);
+  // Aisle lines between the racking
+  floorPaint(a, -4.6, 0.4, 0.1, 6.4, '#f5c518');
 
   // Roller shutter door
   const shutter = mk('a-entity', { position: '0 0 -4.9' }, a);
@@ -387,6 +575,25 @@ function buildBay(root) {
     active: false, halo: true, haloColor: '#ff4d5e', haloRadius: 0.3, haloOffset: { x: 0, y: 0.35, z: 0 }
   });
 
+  // --- Fittings -------------------------------------------------------
+  // Impact bollards protecting the racking
+  [-2.5, -6.6].forEach((bx) => bollard(a, bx, 0.6));
+  bollard(a, 3.7, -1.9);
+  // A short roller conveyor feeding the bay
+  conveyor(a, -1.3, -4.1, 3.4);
+  // Coloured drums and shrink-wrapped stock
+  drum(a, 5.9, 3.4, '#2f6fb5');
+  drum(a, 5.35, 3.9, '#c62b2b');
+  drum(a, 6.1, 4.1, '#e0a52a');
+  wrappedPallet(a, -5.4, 4.0, 12);
+  wrappedPallet(a, 0.9, 3.9, -8);
+  // Overhead aisle signage
+  hangingSign(a, -4.6, -2.2, 'AISLE A', '#f5c518');
+  hangingSign(a, 5.0, -2.2, 'AISLE B', '#55e9ff');
+  // Safety kit
+  wallBox(a, 6.9, 1.5, 0.4, -90, '#c62b2b', 'FIRE', '#ffd7d7');
+  wallBox(a, 6.9, 1.5, 1.6, -90, '#1f8a4c', 'FIRST AID', '#d6ffe6');
+
   securityCam(a, -6.4, 3.5, -4.3, 45);
 
   // --- NPC: Bikash Thapa, Logistics Lead (fictional character) ---
@@ -404,8 +611,12 @@ function buildBay(root) {
 function buildStaff(root) {
   const o = CONFIG.areaOrigin.staff;
   const a = mk('a-entity', { id: 'area-staff', position: `${o.x} 0 ${o.z}` }, root);
-  buildShell(a, { wallKind: 'steelLight', accent: '#3ce88f', lightIntensity: 0.6 });
+  buildShell(a, { wallKind: 'steelLight', accent: '#3ce88f', band: '#263a46', lightIntensity: 0.6 });
   buildDoors(a, 'staff', 10, 4);
+
+  // Painted walkway through the room and a first-aid point
+  walkway(a, 0, 2.4, 2.0, 4.6);
+  wallBox(a, -6.9, 1.5, 1.2, 90, '#1f8a4c', 'FIRST AID', '#d6ffe6');
 
   // Lockers
   const lockers = mk('a-entity', { position: '-4.6 0 -4.5' }, a);
@@ -466,6 +677,18 @@ function buildStaff(root) {
     active: false, halo: true, haloColor: '#ff4d5e', haloRadius: 0.24, haloOffset: { x: 0, y: 0.3, z: 0 }
   });
 
+  // A vending machine and coloured mugs - the room people actually use
+  const vend = mk('a-entity', { position: '3.9 0 -4.4' }, a);
+  mk('a-box', { position: '0 0.95 0', width: 1.0, height: 1.9, depth: 0.7, material: 'color: #b4302f; roughness: 0.55; metalness: 0.12', shadow: 'cast: true' }, vend);
+  mk('a-plane', { position: '0 1.25 0.36', width: 0.74, height: 1.0, material: 'color: #0b1018; emissive: #55e9ff; emissiveIntensity: 0.35; opacity: 0.9; transparent: true' }, vend);
+  ['#f0b81c', '#3f8fd0', '#49ad6d'].forEach((c, i) => {
+    mk('a-box', { position: `${-0.24 + i * 0.24} 1.55 0.37`, width: 0.16, height: 0.24, depth: 0.02, material: `color: ${c}; emissive: ${c}; emissiveIntensity: 0.25` }, vend);
+  });
+  mk('a-entity', { position: '3.9 1.4 -3.9', light: 'type: point; color: #ff8a6a; intensity: 0.4; distance: 4; decay: 2' }, a);
+  ['#d94f4f', '#3f8fd0', '#f0b81c'].forEach((c, i) => {
+    mk('a-cylinder', { position: `${4.9 + i * 0.22} 1.03 -2.4`, radius: 0.055, height: 0.11, material: `color: ${c}; roughness: 0.35` }, a);
+  });
+
   securityCam(a, 6.4, 3.5, 4.3, 200);
 
   // --- NPC: Maya Gurung, Shift Supervisor (fictional character) ---
@@ -483,8 +706,17 @@ function buildStaff(root) {
 function buildServer(root) {
   const o = CONFIG.areaOrigin.server;
   const a = mk('a-entity', { id: 'area-server', position: `${o.x} 0 ${o.z}` }, root);
-  buildShell(a, { wallKind: 'steelDark', accent: '#ff4d5e', lightIntensity: 0.3, keyIntensity: 0.5 });
+  buildShell(a, { wallKind: 'steelDark', accent: '#ff4d5e', band: '#2a2230', lightIntensity: 0.3, keyIntensity: 0.5 });
   buildDoors(a, 'server', 10, 4);
+
+  // Painted cold-aisle boundary and a stencilled floor label
+  floorPaint(a, -1.25, 0, 0.1, 9, '#f5c518');
+  floorPaint(a, 1.25, 0, 0.1, 9, '#f5c518');
+  mk('a-plane', {
+    position: '0 0.016 3.4', rotation: '-90 0 0', width: 2.4, height: 0.75,
+    material: 'shader: flat; side: double; transparent: true; opacity: 0.8',
+    sign: 'text: COLD AISLE; sub: AUTHORISED ACCESS; color: #55e9ff; bg: #101722'
+  }, a);
 
   // Raised-floor grille strip down the cold aisle
   mk('a-plane', { position: '0 0.014 0', rotation: '-90 0 0', width: 2.4, height: 9, material: 'color: #1a212c; roughness: 0.9; metalness: 0.3' }, a);
@@ -539,6 +771,19 @@ function buildServer(root) {
 
   // Floor haze lights
   mk('a-entity', { position: '0 0.6 0', light: 'type: point; color: #ff4d5e; intensity: 0.45; distance: 10; decay: 2' }, a);
+  // Coloured patch cabling along the trays - the signature look of a data hall
+  cableRun(a, -2.9, 3.33, 0, 8.6, ['#3f8fd0', '#f0b81c', '#d94f4f', '#49ad6d']);
+  cableRun(a, 2.9, 3.33, 0, 8.6, ['#49ad6d', '#d94f4f', '#3f8fd0', '#f0b81c']);
+  // Power distribution unit
+  const pdu = mk('a-entity', { position: '-5.9 0 1.6', rotation: '0 90 0' }, a);
+  mk('a-box', { position: '0 0.85 0', width: 0.7, height: 1.7, depth: 0.45, material: 'color: #d96a1d; roughness: 0.5; metalness: 0.2', shadow: 'cast: true' }, pdu);
+  mk('a-plane', { position: '0 1.3 0.235', width: 0.5, height: 0.28, material: 'color: #06131a; emissive: #3ce88f; emissiveIntensity: 0.6' }, pdu);
+  [0.55, 0.75, 0.95].forEach((by, i) => {
+    mk('a-sphere', { position: `0.22 ${by} 0.24`, radius: 0.028, material: 'color: #3ce88f; emissive: #3ce88f; emissiveIntensity: 2', 'blink-led': `speed: ${1.4 + i * 0.5}` }, pdu);
+  });
+  hangingSign(a, 0, 2.2, 'DATA HALL', '#ff8f9b');
+  wallBox(a, 6.9, 1.5, 1.8, -90, '#c62b2b', 'FIRE', '#ffd7d7');
+
   securityCam(a, 6.4, 3.5, -4.3, 135);
 
   // --- NPC: Rajan Shrestha, IT Security Officer (fictional character) ---
@@ -569,8 +814,8 @@ export function buildWorld() {
   };
 
   // Global lighting: a dim ambient so nothing is ever pitch black
-  mk('a-entity', { id: 'ambient', light: 'type: ambient; color: #4c6a8f; intensity: 0.55' }, root);
-  mk('a-entity', { id: 'hemi', light: 'type: hemisphere; color: #9fc6ff; groundColor: #1a2130; intensity: 0.45' }, root);
+  mk('a-entity', { id: 'ambient', light: 'type: ambient; color: #4c6a8f; intensity: 0.68' }, root);
+  mk('a-entity', { id: 'hemi', light: 'type: hemisphere; color: #9fc6ff; groundColor: #1a2130; intensity: 0.52' }, root);
 
   // Procedural dusk sky
   const sky = document.getElementById('sky');

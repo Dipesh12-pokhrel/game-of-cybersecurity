@@ -701,11 +701,13 @@ function endGame(reason) {
     <p class="ov-eyebrow ${headline.cls}">${headline.eyebrow}</p>
     <h2 class="ov-title ${headline.cls}" id="overlayTitle">${headline.title}</h2>
     <p class="ov-lede">${won
-      ? `The Phantom Hacker's connection was terminated by your defence grid. ${esc(PHANTOM_LINES.victory)}`
+      ? 'The Phantom Hacker never got a foothold. Every system in the Himalayan Data Vault stayed under your control.'
       : reason === 'breach'
         ? 'The Cyber Attack Meter reached 100%. In a real warehouse this is the point where stock, delivery and staff records are taken offline. Review the debrief and run the simulation again.'
         : 'The countdown ran out before the vault was secured. Review the debrief and try again - speed comes from recognising the patterns.'}
     </p>
+
+    ${won ? `<div class="phantom"><span class="from">Final transmission</span>${esc(PHANTOM_LINES.defeated)}<br>${esc(PHANTOM_LINES.victory)}</div>` : ''}
 
     <div class="rank-badge ${rank.name === 'Trainee' ? 'rank-trainee' : ''}">
       <span class="rank-emoji" aria-hidden="true">${rank.emoji}</span>

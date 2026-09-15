@@ -41,10 +41,13 @@ export function openModal(html, opts = {}) {
 
   closeHandler = opts.onClose || null;
 
-  // Focus the first sensible control
+  // Focus the first sensible control WITHOUT scrolling the dialog: the results
+  // screen autofocuses its buttons, which sit below the score and the rank.
+  bd.scrollTop = 0;
   requestAnimationFrame(() => {
     const target = bd.querySelector('[data-autofocus]') || bd.querySelector('button, [href], input, select') || bd;
-    if (target && target.focus) target.focus();
+    if (target && target.focus) target.focus({ preventScroll: true });
+    bd.scrollTop = 0;
   });
 
   // Keyboard: Escape to dismiss, number keys to pick answers, Tab trapping
@@ -85,9 +88,10 @@ export function setModalContent(html, opts = {}) {
   const bd = body();
   bd.className = 'overlay-body' + (opts.alert ? ' is-alert' : '') + (opts.win ? ' is-win' : '');
   bd.innerHTML = html;
+  bd.scrollTop = 0;
   requestAnimationFrame(() => {
     const target = bd.querySelector('[data-autofocus]') || bd.querySelector('button');
-    if (target && target.focus) target.focus();
+    if (target && target.focus) target.focus({ preventScroll: true });
   });
   return bd;
 }
